@@ -1,0 +1,4 @@
+###Do not use the word test document or shell scripts###
+
+*.sh
+*.docx
