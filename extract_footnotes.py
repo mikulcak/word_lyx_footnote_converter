@@ -20,11 +20,34 @@ tree = etree.parse(footnote_xml)
 
 # print(tree.getroot())
 
+def get_footnote_information(id, current_list_object):
+	current_list_object.footnote = True
+	current_list_object.footnote_id = id
+	current_list_object.citation_key = "999999999"
+	current_list_object.pre_text = ""
+	current_list_object.post_text = ""
+
+class List_object:
+	footnote = False
+	
+	def __str__(self):
+		# print("I am a list object")
+		if self.footnote:
+			# return ("I am a footnote.")
+			return self.id
+		else:
+			# return ("I am text.")
+			return self.text
+
 root = tree.getroot()
+
+collected_text_list = []
+document_content = []
 
 for child in root[0]:
 	# print(child.tag)
 	for child in child:
+		# print(child.tag)
 		# print('\t' + child.tag)
 		# print(colored(child.get('t'), 'green'))
 		# print(child.tag)
@@ -33,11 +56,50 @@ for child in root[0]:
 		for child in child:
 			# print(etree.QName(child.tag).localname)
 			if etree.QName(child.tag).localname is 't':
-				print(child.text, end=' ')
+				if child.text is not None:
+					# new_list_object = List_object()
+					new_list_object = List_object()
+					new_list_object.footnote = False
+					if child.get('{http://www.w3.org/XML/1998/namespace}space') is not None:
+					# print(child.keys())
+						collected_text_list.append(' ' + child.text)
+						new_list_object.text = ' ' + child.text
+						# print(child.text, end='')
+					else:
+						# print(' ' + child.text, end='')
+						collected_text_list.append(child.text)
+						new_list_object.text = child.text
+					document_content.append(new_list_object)
+
 			else:
 				if child.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id') is not None:
+					new_list_object = List_object()
+					new_list_object.footnote = True
+					new_list_object.id = str(child.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id'))
 					print(colored(str(child.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}id')), 'red'),  end='')
+					document_content.append(new_list_object)
 			# print(child.keys())
+	new_list_object = List_object()
+	new_list_object.text = '\n'
+	document_content.append(new_list_object)
+	# collected_text_list.append('\n')
+
+# collected_text = [y for x in collected_text_list for y in x]
+
+collected_text = ""
+for entry in collected_text_list:
+	collected_text = collected_text + entry
+
+for entry in document_content:
+	print(entry, end='')
+
+# collected_text = lambda l: [item for sublist in collected_text_list for item in sublist]
+
+
+
+# print(collected_text)
+
+# collected_text = 
 
 # for element in root.findall("r"):
 	# print(element)
