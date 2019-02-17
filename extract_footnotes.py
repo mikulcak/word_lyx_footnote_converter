@@ -5,24 +5,15 @@ from termcolor import colored
 
 import re
 
-# from parsel import Selector
-
-# We'll use json.loads for parsing the JSON data.
 import json
 
 from pyzotero import zotero
 from pyzotero import zotero_errors
 
-# # Import the citeproc-py classes we'll use below.
-# from citeproc import CitationStylesStyle, CitationStylesBibliography
-# from citeproc import Citation, CitationItem
-# from citeproc import formatter
-# from citeproc.source.json import CiteProcJSON
-
 if len(sys.argv) < 5:
     sys.exit()
 
-# print(sys.argv)
+output_lyx = True
 
 main_document_xml = sys.argv[1]
 footnote_xml = sys.argv[2]
@@ -32,26 +23,7 @@ zotero_api_key = sys.argv[4]
 nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
 
-# mylist = []
-
-
-# for element in tree.iter():
-# print(element.tag)
-
-# print(tree.getroot())
-
-
-# def parsel_test():
-#     selector = Selector(text=footnote_xml, type='xml')
-#     # print(selector)
-#     selector.register_namespace("w", "http://schemas.openxmlformats.org/wordprocessingml/2006/main")
-#     # print(selector)
-
-#     results = selector.xpath('/w:footnotes')
-#     # results = selector.xpath('/w:footnotes/w:footnote/w:p/w:r/w:instrText')
-#     # print(results)
-
-def create_autocite_from_footnote_list(footnote_list):
+def create_citation_command_from_footnote_list(footnote_list):
     print("Getting information for footnote with information " + str(footnote_list))
     result = "EMPTY-CITATION-FIX-ME"
     if footnote_list is not None:
@@ -199,7 +171,7 @@ def main():
     for entry in document_content:
         if entry.footnote is True:
             # print(entry.footnote_information, end='')
-            output_file.write(str(create_autocite_from_footnote_list(entry.footnote_information)))
+            output_file.write(str(create_citation_command_from_footnote_list(entry.footnote_information)))
         else:
             output_file.write(str(entry))
             # print(entry, end='')
