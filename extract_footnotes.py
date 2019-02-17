@@ -3,10 +3,15 @@ from lxml import etree
 
 from termcolor import colored
 
+import re
+
 # from parsel import Selector
 
 # We'll use json.loads for parsing the JSON data.
 import json
+
+from pyzotero import zotero
+from pyzotero import zotero_errors
 
 # # Import the citeproc-py classes we'll use below.
 # from citeproc import CitationStylesStyle, CitationStylesBibliography
@@ -14,13 +19,15 @@ import json
 # from citeproc import formatter
 # from citeproc.source.json import CiteProcJSON
 
-if len(sys.argv) < 3:
+if len(sys.argv) < 5:
     sys.exit()
 
 # print(sys.argv)
 
 main_document_xml = sys.argv[1]
 footnote_xml = sys.argv[2]
+zotero_library_id = sys.argv[3]
+zotero_api_key = sys.argv[4]
 
 nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
@@ -43,6 +50,47 @@ nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 #     results = selector.xpath('/w:footnotes')
 #     # results = selector.xpath('/w:footnotes/w:footnote/w:p/w:r/w:instrText')
 #     # print(results)
+
+def create_autocite_from_footnote_list(footnote_list):
+    print("Getting information for footnote with information " + str(footnote_list))
+    result = "EMPTY-CITATION-FIX-ME"
+    if footnote_list is not None:
+        result = "\\autocites"
+        for entry in footnote_list:
+            if 'prefix' in entry.keys():
+                result += ("[" + entry['prefix'] + "]")
+            else:
+                result += "[]"
+            if 'locator' in entry.keys():
+                result += ("[" + entry['locator'] + "]")
+            else:
+                result += "[]"
+            if 'uri' in entry.keys():
+                result += ("{" + get_biblatex_cite_key_from_zotero_api(entry['uri']) + "}")
+                # result.append(entry['uri'])
+    return result
+
+
+def parse_citation_key(extra_field):
+    # return extra_field.lstrip("Citation Key: ")
+    # return extra_field.replace()
+    # re.sub()
+    return re.sub(r'.*\W*(citation key:)\W*', '', extra_field, flags=re.IGNORECASE)
+
+
+def get_zotero_item_key_from_uri(uri):
+    return uri.split('/')[-1]
+
+
+def get_biblatex_cite_key_from_zotero_api(citation_uri):
+    zot = zotero.Zotero(zotero_library_id, 'user', zotero_api_key)
+    # items = zot.top(limit=5)
+    # print(get_zotero_item_key_from_uri(citation_uri))
+    try:
+        item = zot.item(str(get_zotero_item_key_from_uri(citation_uri)))
+    except zotero_errors.ResourceNotFound:
+        return "INFORMATION-FOR-URI-" + citation_uri + "-NOT-FOUND-FIX-ME"
+    return parse_citation_key(item['data']['extra'])
 
 
 def extract_csl_data_from_footnote(csl_data):
@@ -71,9 +119,9 @@ def extract_csl_data_from_footnote(csl_data):
 
 
 def get_footnote_information(id):
-    # print(colored("Looking for citation id " + id, 'red'))
+    print(colored("Looking for citation id " + id, 'red'))
     tree = etree.parse(footnote_xml)
-    root = tree.getroot()
+    # root = tree.getroot()
     results = tree.xpath("//w:footnotes/w:footnote/w:p/w:r/w:instrText",
                          namespaces=nsmap)
     for footnote in results:
@@ -113,7 +161,7 @@ def main():
             # print('\t' + child.tag)
             # print(colored(child.get('t'), 'green'))
             # print(child.tag)
-            current_localname = etree.QName(child.tag).localname
+            # current_localname = etree.QName(child.tag).localname
             # print(current_localname)
             for child in child:
                 # print(etree.QName(child.tag).localname)
@@ -147,10 +195,22 @@ def main():
         new_list_object.text = '\n'
         document_content.append(new_list_object)
 
+    output_file = open("output.tex", 'w')
     for entry in document_content:
-        print(entry, end='')
+        if entry.footnote is True:
+            # print(entry.footnote_information, end='')
+            output_file.write(str(create_autocite_from_footnote_list(entry.footnote_information)))
+        else:
+            output_file.write(str(entry))
+            # print(entry, end='')
+
+    output_file.close()
 
 
 if __name__ == '__main__':
     main()
-    # parsel_test()
+
+    # footnote_list = [{'uri': 'http://zotero.org/users/3766391/items/TJI56T4I'}, {'uri': 'http://zotero.org/users/3766391/items/VFGZ5EZI', 'prefix': "on the reception of Mitchell's 1913 book, see", 'locator': '174'}, {'uri': 'http://zotero.org/users/3766391/items/DIJH9IB2', 'locator': '47'}]
+    # print(create_autocite_from_footnote_list(footnote_list))
+
+    # print(call_zotero_api("https://www.zotero.org/le_ticia/items/43YYHYDG"))
