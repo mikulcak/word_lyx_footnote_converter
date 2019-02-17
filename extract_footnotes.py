@@ -1,7 +1,12 @@
 import sys
+import io
 from lxml import etree
 
 from termcolor import colored
+
+from mako.template import Template
+from mako.runtime import Context
+
 
 import re
 
@@ -22,32 +27,80 @@ zotero_api_key = sys.argv[4]
 
 nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
-# local_zotero_cache = {}
+# \begin_inset CommandInset citation
+# LatexCommand footcite
+# key "mitchellLetterHenryDennison1924,AdvertisementBrookmireEconomic1912"
+# pretextlist "mitchellLetterHenryDennison1924 see:   AdvertisementBrookmireEconomic1912 also look at:"
+# posttextlist "mitchellLetterHenryDennison1924 25    AdvertisementBrookmireEconomic1912 2"
+# literal "false"
 
-
-# def load_local_zotero_cache():
-    # with open('data.txt') as json_file:
-        # local_zotero_cache = json.load(json_file)
-
+# \end_inset
 
 
 def create_citation_command_from_footnote_list(footnote_list):
     print("Getting information for footnote with information " + str(footnote_list))
     result = "EMPTY-CITATION-FIX-ME"
-    if footnote_list is not None:
-        result = "\\autocites"
-        for entry in footnote_list:
-            if 'prefix' in entry.keys():
-                result += ("[" + entry['prefix'] + "]")
-            else:
-                result += "[]"
-            if 'locator' in entry.keys():
-                result += ("[" + entry['locator'] + "]")
-            else:
-                result += "[]"
-            if 'uri' in entry.keys():
-                result += ("{" + get_biblatex_cite_key_from_zotero_api(entry['uri']) + "}")
-                # result.append(entry['uri'])
+    if output_lyx is True:
+        print("Outputting LyX citation command")
+        mytemplate = Template(filename='lyx_citation_command_template.tmpl')
+        buf = io.StringIO()
+
+        # create context to impose on the template in the current iteration
+        key_list = []
+        if footnote_list is not None:
+            for entry in footnote_list:
+                if 'uri' in entry.keys():
+                    key_list.append(get_biblatex_cite_key_from_zotero_api(entry['uri']))
+
+        # print(key_list.join(','))
+        print(','.join(key_list))
+
+        pretext_list = []
+        if footnote_list is not None:
+            for entry in footnote_list:
+                if 'prefix' in entry.keys():
+                    pretext_list.append(get_biblatex_cite_key_from_zotero_api(entry['uri']))
+                    pretext_list.append(entry['prefix'].replace("\"", "\\\""))
+
+        posttext_list = []
+        if footnote_list is not None:
+            for entry in footnote_list:
+                if 'locator' in entry.keys():
+                    posttext_list.append(get_biblatex_cite_key_from_zotero_api(entry['uri']))
+                    posttext_list.append(entry['locator'].replace("\"", "\\\""))
+
+        ctx = Context(buf, key_list=','.join(key_list), pretext_list=' '.join(pretext_list), posttext_list=' '.join(posttext_list))
+
+        # render template with context we've just generated
+        mytemplate.render_context(ctx)
+
+        result = buf.getvalue()
+        print(result)
+        # f = open(latex_output_file, 'w')
+
+        # write the string buffer to the file
+        # f.write(buf.getvalue())
+
+        # close file handle
+        # f.close()
+
+        # result = ""
+    else:
+        result = "EMPTY-CITATION-FIX-ME"
+        if footnote_list is not None:
+            result = "\\autocites"
+            for entry in footnote_list:
+                if 'prefix' in entry.keys():
+                    result += ("[" + entry['prefix'] + "]")
+                else:
+                    result += "[]"
+                if 'locator' in entry.keys():
+                    result += ("[" + entry['locator'] + "]")
+                else:
+                    result += "[]"
+                if 'uri' in entry.keys():
+                    result += ("{" + get_biblatex_cite_key_from_zotero_api(entry['uri']) + "}")
+                    # result.append(entry['uri'])
     return result
 
 
@@ -190,13 +243,23 @@ def main():
         new_list_object.text = '\n'
         document_content.append(new_list_object)
 
-    output_file = open("output.tex", 'w')
+    if output_lyx is True:
+        output_file = open("output.lyx", 'w')
+    else:
+        output_file = open("output.tex", 'w')
     for entry in document_content:
         if entry.footnote is True:
             # print(entry.footnote_information, end='')
             output_file.write(str(create_citation_command_from_footnote_list(entry.footnote_information)))
         else:
-            output_file.write(str(entry))
+            current_entry = str(entry)
+            current_entry = current_entry.replace('“', """\\begin_inset Quotes eld
+\\end_inset
+""")
+            current_entry = current_entry.replace('”', """\\begin_inset Quotes erd
+\\end_inset
+""")
+            output_file.write(current_entry)
             # print(entry, end='')
 
     output_file.close()
