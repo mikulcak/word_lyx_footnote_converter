@@ -22,6 +22,14 @@ zotero_api_key = sys.argv[4]
 
 nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
+# local_zotero_cache = {}
+
+
+# def load_local_zotero_cache():
+    # with open('data.txt') as json_file:
+        # local_zotero_cache = json.load(json_file)
+
+
 
 def create_citation_command_from_footnote_list(footnote_list):
     print("Getting information for footnote with information " + str(footnote_list))
@@ -55,13 +63,28 @@ def get_zotero_item_key_from_uri(uri):
 
 
 def get_biblatex_cite_key_from_zotero_api(citation_uri):
-    zot = zotero.Zotero(zotero_library_id, 'user', zotero_api_key)
     # items = zot.top(limit=5)
     # print(get_zotero_item_key_from_uri(citation_uri))
-    try:
-        item = zot.item(str(get_zotero_item_key_from_uri(citation_uri)))
-    except zotero_errors.ResourceNotFound:
-        return "INFORMATION-FOR-URI-" + citation_uri + "-NOT-FOUND-FIX-ME"
+    item_key = str(get_zotero_item_key_from_uri(citation_uri))
+    # if local_zotero_cache[item_key] is not None:
+
+    with open('data.txt') as json_file:
+        local_zotero_cache = json.load(json_file)
+
+    print(colored(str(local_zotero_cache.keys()), 'green'))
+    if item_key not in local_zotero_cache.keys():
+        print("Item not in cache, querying Zotero API")
+        try:
+            zot = zotero.Zotero(zotero_library_id, 'user', zotero_api_key)
+            item = zot.item(item_key)
+            local_zotero_cache[item_key] = item
+            with open('data.txt', 'w') as outfile:
+                json.dump(local_zotero_cache, outfile)
+        except zotero_errors.ResourceNotFound:
+            return "INFORMATION-FOR-URI-" + citation_uri + "-NOT-FOUND-FIX-ME"
+    else:
+        print("Found item in local cache")
+        item = local_zotero_cache[item_key]
     return parse_citation_key(item['data']['extra'])
 
 
@@ -180,6 +203,7 @@ def main():
 
 
 if __name__ == '__main__':
+    # load_local_zotero_cache()
     main()
 
     # footnote_list = [{'uri': 'http://zotero.org/users/3766391/items/TJI56T4I'}, {'uri': 'http://zotero.org/users/3766391/items/VFGZ5EZI', 'prefix': "on the reception of Mitchell's 1913 book, see", 'locator': '174'}, {'uri': 'http://zotero.org/users/3766391/items/DIJH9IB2', 'locator': '47'}]
