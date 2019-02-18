@@ -20,6 +20,8 @@ if len(sys.argv) < 5:
 
 output_lyx = True
 
+FOOTNOTE_WRITING = True
+
 main_document_xml = sys.argv[1]
 footnote_xml = sys.argv[2]
 zotero_library_id = sys.argv[3]
@@ -42,7 +44,7 @@ def create_citation_command_from_footnote_list(footnote_list):
     result = "EMPTY-CITATION-FIX-ME"
     if output_lyx is True:
         print("Outputting LyX citation command")
-        mytemplate = Template(filename='lyx_citation_command_template.tmpl')
+        mytemplate = Template(filename='lyx_template/lyx_citation_command_template.tmpl')
         buf = io.StringIO()
 
         # create context to impose on the template in the current iteration
@@ -60,16 +62,20 @@ def create_citation_command_from_footnote_list(footnote_list):
             for entry in footnote_list:
                 if 'prefix' in entry.keys():
                     pretext_list.append(get_biblatex_cite_key_from_zotero_api(entry['uri']))
+                    pretext_list.append(' ')
                     pretext_list.append(entry['prefix'].replace("\"", "\\\""))
+                    pretext_list.append('\t')
 
         posttext_list = []
         if footnote_list is not None:
             for entry in footnote_list:
                 if 'locator' in entry.keys():
                     posttext_list.append(get_biblatex_cite_key_from_zotero_api(entry['uri']))
+                    posttext_list.append(' ')
                     posttext_list.append(entry['locator'].replace("\"", "\\\""))
+                    posttext_list.append('\t')
 
-        ctx = Context(buf, key_list=','.join(key_list), pretext_list=' '.join(pretext_list), posttext_list=' '.join(posttext_list))
+        ctx = Context(buf, key_list=','.join(key_list), pretext_list=''.join(pretext_list), posttext_list=''.join(posttext_list))
 
         # render template with context we've just generated
         mytemplate.render_context(ctx)
@@ -181,6 +187,7 @@ def get_footnote_information(id):
 class List_object:
     footnote = False
     footnote_information = []
+    new_paragraph = False
 
     def __str__(self):
         # print("I am a list object")
@@ -204,6 +211,10 @@ def main():
 
     for child in root[0]:
         # print(child.tag)
+        new_list_object = List_object()
+        # new_list_object.new_paragraph = True
+        new_list_object.text = "\n\n"
+        document_content.append(new_list_object)
         for child in child:
             # print(child.tag)
             # print('\t' + child.tag)
@@ -218,14 +229,16 @@ def main():
                         # new_list_object = List_object()
                         new_list_object = List_object()
                         new_list_object.footnote = False
+                        # if False:
                         if child.get('{http://www.w3.org/XML/1998/namespace}space') is not None:
                             # collected_text_list.append(' ' + child.text)
-                            new_list_object.text = ' ' + child.text
+                            # new_text = child.text.lstrip(' ').rstrip(' ')
+                            new_list_object.text = ' ' + child.text + ' '
                             # print(child.text, end='')
                         else:
                             # print(' ' + child.text, end='')
                             # collected_text_list.append(child.text)
-                            new_list_object.text = child.text
+                            new_list_object.text = (child.text).lstrip(' ').rstrip(' ')
                         document_content.append(new_list_object)
 
                 else:
@@ -244,25 +257,86 @@ def main():
         document_content.append(new_list_object)
 
     if output_lyx is True:
+        mytemplate = Template(filename='lyx_template/lyx_template.tmpl')
+        buf = io.StringIO()
+
+        content_list = []
+        content_list.append("\\begin_layout Standard\n")
+
+        for entry in document_content:
+            try:
+                # doStuff(a.property)
+                if entry.text == "\n\n":
+                    content_list.append("\\end_layout\n")
+                    content_list.append("\\begin_layout Standard\n")
+            except AttributeError:
+                # otherStuff()
+                pass
+            # content_list.a
+            if entry.footnote is True:
+                if FOOTNOTE_WRITING is True:
+                    content_list.append(str(create_citation_command_from_footnote_list(entry.footnote_information)))
+                else:
+                    # content_list.append("\n\\textcolor{red}{DEBUG: Writing footnotes disabled}\n")
+                    content_list.append("\n\\color red\nDEBUG: Writing footnotes disabled\n\\color inherit\n")
+            else:
+                current_entry = str(entry)
+                current_entry = current_entry.replace('“', """\\begin_inset Quotes eld
+\\end_inset
+""")
+                current_entry = current_entry.replace('”', """\\begin_inset Quotes erd
+\\end_inset
+""")
+                content_list.append(current_entry)
+        content_list.append("\\end_layout\n")
+        ctx = Context(buf, document_content=''.join(content_list))
+
+        # render template with context we've just generated
+        mytemplate.render_context(ctx)
+
+        # result = buf.getvalue()
+        # print(result)
         output_file = open("output.lyx", 'w')
+
+        # write the string buffer to the file
+        output_file.write(buf.getvalue())
+
+        # close file handle
+        output_file.close()
+
     else:
         output_file = open("output.tex", 'w')
-    for entry in document_content:
-        if entry.footnote is True:
-            # print(entry.footnote_information, end='')
-            output_file.write(str(create_citation_command_from_footnote_list(entry.footnote_information)))
-        else:
-            current_entry = str(entry)
-            current_entry = current_entry.replace('“', """\\begin_inset Quotes eld
-\\end_inset
-""")
-            current_entry = current_entry.replace('”', """\\begin_inset Quotes erd
-\\end_inset
-""")
-            output_file.write(current_entry)
-            # print(entry, end='')
+        for entry in document_content:
+            # if entry.new_paragraph is True:
+                # output_file.write("\n\n")
+            if entry.footnote is True:
+                # print(entry.footnote_information, end='')
+                # output_file.write(str(create_citation_command_from_footnote_list(entry.footnote_information)))
+                if FOOTNOTE_WRITING is True:
+                    output_file.write(str(create_citation_command_from_footnote_list(entry.footnote_information)))
+                else:
+                    output_file.write("\n\\textcolor{red}{DEBUG: Writing footnotes disabled}\n")
+            else:
+                current_entry = str(entry)
+    #             if output_lyx is True:
+    #                 current_entry = current_entry.replace('“', """\\begin_inset Quotes eld
+    # \\end_inset
+    # """)
+    #                 current_entry = current_entry.replace('”', """\\begin_inset Quotes erd
+    # \\end_inset
+    # """)
+    #             else:
+                current_entry = current_entry.replace("&", "\\&")
+                current_entry = current_entry.replace("%", "\\%")
+                current_entry = current_entry.replace("$", "\\$")
 
-    output_file.close()
+                current_entry = current_entry.replace("“", "``")
+                current_entry = current_entry.replace("„", "``")
+                current_entry = current_entry.replace("”", "\'\'")
+                output_file.write(current_entry)
+                # print(entry, end='')
+
+        output_file.close()
 
 
 if __name__ == '__main__':
