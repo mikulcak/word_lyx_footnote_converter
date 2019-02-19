@@ -2,6 +2,8 @@ import sys
 import io
 from lxml import etree
 
+import os
+
 from termcolor import colored
 
 from mako.template import Template
@@ -15,17 +17,19 @@ import json
 from pyzotero import zotero
 from pyzotero import zotero_errors
 
-if len(sys.argv) < 5:
+import zipfile
+
+import tempfile
+
+if len(sys.argv) < 3:
     sys.exit()
 
 output_lyx = True
 
 FOOTNOTE_WRITING = True
 
-main_document_xml = sys.argv[1]
-footnote_xml = sys.argv[2]
-zotero_library_id = sys.argv[3]
-zotero_api_key = sys.argv[4]
+zotero_library_id = sys.argv[2]
+zotero_api_key = sys.argv[3]
 
 nsmap = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
 
@@ -174,7 +178,8 @@ def extract_csl_data_from_footnote(csl_data):
 
 def get_footnote_information(id):
     print(colored("Looking for citation id " + id, 'red'))
-    tree = etree.parse(footnote_xml)
+    tree = etree.parse(os.path.join(document_temp_path, "word", "footnotes.xml"))
+    # tree = etree.parse(footnote_xml)
     # root = tree.getroot()
     results = tree.xpath("//w:footnotes/w:footnote/w:p/w:r/w:instrText",
                          namespaces=nsmap)
@@ -202,7 +207,8 @@ class List_object:
 
 
 def main():
-    tree = etree.parse(main_document_xml)
+    tree = etree.parse(os.path.join(document_temp_path, "word", "document.xml"))
+    # tree = etree.parse(main_document_xml)
 
     root = tree.getroot()
 
@@ -340,6 +346,13 @@ def main():
 
 
 if __name__ == '__main__':
+    print(sys.argv[1])
+    zip_ref = zipfile.ZipFile(sys.argv[1], 'r')
+
+    document_temp_path = os.path.join(tempfile.gettempdir(), sys.argv[1] + "_unpacked")
+    zip_ref.extractall(document_temp_path)
+    zip_ref.close()
+
     # load_local_zotero_cache()
     main()
 
