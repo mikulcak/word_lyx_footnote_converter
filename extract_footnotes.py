@@ -261,7 +261,6 @@ def main():
                 current_entry = current_entry.replace("„", "``")
                 current_entry = current_entry.replace("”", "\'\'")
                 output_file.write(current_entry)
-                # print(entry, end='')
 
         output_file.close()
 
